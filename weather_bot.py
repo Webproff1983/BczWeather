@@ -91,7 +91,8 @@ def draw_weather_card(weather_data):
     """
     Накладывает красивую полупрозрачную плашку с погодой в правый нижний угол изображения БЦЗ.
     """
-    background_path = "bcz_background.png"
+    background_path = "ChatGPT Image 14 июл. 2026 г., 21_48_45.png"
+
     output_path = "bcz_weather_output.png"
     
     if not os.path.exists(background_path):
