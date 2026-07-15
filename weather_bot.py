@@ -36,7 +36,6 @@ def get_weather():
         print(f"Ошибка получения погоды: {e}")
     return None
 
-
 def get_weather_desc(code):
     """
     Декодирует WMO код погоды в понятное описание на русском языке.
@@ -76,12 +75,17 @@ def download_font():
     font_path = "Montserrat-Medium.ttf"
     if not os.path.exists(font_path):
         print("Скачиваю красивый шрифт Montserrat...")
-        font_url = "https://github.com/google/fonts/raw/main/ofl/montserrat/Montserrat-Medium.ttf"
+        # Используем стабильный CDN-адрес Google Fonts
+        font_url = "https://fonts.gstatic.com/s/montserrat/v25/JTUSjIg1_i6t8kCHKm459WRhyzbi.ttf"
         try:
-            r = requests.get(font_url)
-            with open(font_path, "wb") as f:
-                f.write(r.content)
-            print("Шрифт успешно сохранен!")
+            r = requests.get(font_url, timeout=15)
+            if r.status_code == 200:
+                with open(font_path, "wb") as f:
+                    f.write(r.content)
+                print("Шрифт успешно сохранен!")
+            else:
+                print(f"Не удалось скачать шрифт, код: {r.status_code}. Будет использован стандартный.")
+                return None
         except Exception as e:
             print(f"Не удалось скачать шрифт: {e}. Будет использован стандартный.")
             return None
@@ -91,8 +95,8 @@ def draw_weather_card(weather_data):
     """
     Накладывает красивую полупрозрачную плашку с погодой в правый нижний угол изображения БЦЗ.
     """
+    # Используем текущее точное название картинки в твоем репозитории
     background_path = "ChatGPT Image 14 июл. 2026 г., 21_48_45.png"
-
     output_path = "bcz_weather_output.png"
     
     if not os.path.exists(background_path):
@@ -106,15 +110,21 @@ def draw_weather_card(weather_data):
     # Скачиваем/подключаем шрифт
     font_file = download_font()
     
-    # Настройки размеров шрифтов (адаптируем под разрешение оригинального фото)
-    # Исходное изображение широкое, поэтому шрифты делаем крупными
+    # Резервный запуск на случай проблем с файлом шрифта
+    font_loaded = False
     if font_file:
-        font_date = ImageFont.truetype(font_file, 40)
-        font_temp = ImageFont.truetype(font_file, 100)
-        font_desc = ImageFont.truetype(font_file, 35)
-        font_sub = ImageFont.truetype(font_file, 28)
-    else:
-        # Резервный шрифт, если загрузка не удалась
+        try:
+            font_date = ImageFont.truetype(font_file, 40)
+            font_temp = ImageFont.truetype(font_file, 100)
+            font_desc = ImageFont.truetype(font_file, 35)
+            font_sub = ImageFont.truetype(font_file, 28)
+            font_loaded = True
+        except Exception as e:
+            print(f"Ошибка загрузки шрифта {font_file}: {e}. Переключаюсь на стандартный.")
+            if os.path.exists(font_file):
+                os.remove(font_file)
+
+    if not font_loaded:
         font_date = font_temp = font_desc = font_sub = ImageFont.load_default()
         
     # Парсим данные погоды
@@ -136,13 +146,9 @@ def draw_weather_card(weather_data):
     now_dt = dt.datetime.now()
     date_str = f"{weekdays[now_dt.weekday()]}, {now_dt.day} {months[now_dt.month - 1]}"
     
-    # Рисуем стильную темную полупрозрачную плашку в правом нижнем углу
-    # Координаты адаптированы под то, чтобы плашка красиво встала на фоне газона и скамейки
+    # Размеры плашки и отступы (подгоняем под газон и скамейку справа)
     width, height = img.size
-    
-    # Размер плашки
     p_width, p_height = 580, 420
-    # Отступы от краев
     margin_right, margin_bottom = 80, 120
     
     x1 = width - p_width - margin_right
@@ -153,27 +159,28 @@ def draw_weather_card(weather_data):
     # Черная плашка с прозрачностью 60% (150 из 255) и со скруглением углов
     draw.rounded_rectangle([x1, y1, x2, y2], radius=30, fill=(15, 23, 42, 160))
     
-    # Наносим текст на плашку (смещение относительно левого верхнего угла плашки)
+    # Пишем текст поверх плашки
     draw.text((x1 + 40, y1 + 40), date_str.upper(), font=font_date, fill=(255, 255, 255, 255))
     
-    # Отрисовка температуры
+    # Температура
     sign = "+" if temp_now > 0 else ""
     temp_str = f"{sign}{temp_now}°C"
     draw.text((x1 + 40, y1 + 100), temp_str, font=font_temp, fill=(255, 255, 255, 255))
     
-    # Отрисовка погоды (статус и эмодзи)
+    # Описание погоды
     draw.text((x1 + 40, y1 + 220), f"{status_emoji} {status_text}", font=font_desc, fill=(241, 245, 249, 255))
     
-    # Прогноз на день и доп. параметры
+    # Прогноз мин/макс
     sign_min = "+" if temp_min > 0 else ""
     sign_max = "+" if temp_max > 0 else ""
     daily_str = f"Днем: {sign_max}{temp_max}° | Ночью: {sign_min}{temp_min}°"
     draw.text((x1 + 40, y1 + 290), daily_str, font=font_sub, fill=(203, 213, 225, 255))
     
+    # Ветер и влажность
     info_str = f"💨 Ветер: {wind} м/с  |  💧 Влажность: {humidity}%"
     draw.text((x1 + 40, y1 + 340), info_str, font=font_sub, fill=(203, 213, 225, 255))
     
-    # Сохраняем готовую картинку
+    # Сохраняем картинку
     final_img = img.convert("RGB")
     final_img.save(output_path, "JPEG", quality=90)
     print("Изображение погоды успешно сгенерировано!")
@@ -198,7 +205,7 @@ def send_telegram_card(weather_data):
     sign_min = "+" if temp_min > 0 else ""
     sign_max = "+" if temp_max > 0 else ""
 
-    # Красивый сопроводительный текст для канала
+    # Корпоративный текст для БЦЗ
     text = (
         f"☀️ <b>Доброе утро, коллеги!</b>\n\n"
         f"Информационная служба Белорусского цементного завода представляет прогноз погоды в Костюковичах на сегодня:\n\n"
@@ -212,7 +219,6 @@ def send_telegram_card(weather_data):
     
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
     
-    # Открываем созданную картинку и пушим в Telegram
     try:
         with open("bcz_weather_output.png", "rb") as photo:
             payload = {
