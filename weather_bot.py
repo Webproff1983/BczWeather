@@ -16,17 +16,26 @@ def get_weather():
     """
     Получает актуальную погоду и прогноз на сегодня в Костюковичах через Open-Meteo API.
     """
-    url = f"https://api.open-meteo.com/v1/forecast?latitude={LATITUDE}&longitude={LONGITUDE}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,weather_code&wind_speed_unit=ms&timezone=Europe%/Minsk"
-    # Заменяем символ "/" на правильный для часового пояса
-    url = url.replace("%/Minsk", "Minsk")
+    url = (
+        f"https://api.open-meteo.com/v1/forecast"
+        f"?latitude={LATITUDE}"
+        f"&longitude={LONGITUDE}"
+        f"&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m"
+        f"&daily=temperature_2m_max,temperature_2m_min,weather_code"
+        f"&wind_speed_unit=ms"
+        f"&timezone=Europe/Minsk"
+    )
     
     try:
         response = requests.get(url, timeout=15)
         if response.status_code == 200:
             return response.json()
+        else:
+            print(f"🔴 Ошибка API погоды: Код {response.status_code}")
     except Exception as e:
         print(f"Ошибка получения погоды: {e}")
     return None
+
 
 def get_weather_desc(code):
     """
